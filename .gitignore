@@ -2,6 +2,7 @@
 
 example.html
 *.txt
+*.xlsx
 
 #Github default python ignores
 
