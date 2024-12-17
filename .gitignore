@@ -1,3 +1,10 @@
+# Example html code file so I don't leak anything sensitive
+
+example.html
+*.txt
+
+#Github default python ignores
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
