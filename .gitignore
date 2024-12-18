@@ -1,6 +1,6 @@
 # Example html code file so I don't leak anything sensitive
 
-example.html
+*.html
 *.txt
 *.xlsx
 

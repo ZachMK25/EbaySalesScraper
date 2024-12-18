@@ -37,7 +37,7 @@ def gross_date_conversion(date):  # expects date in "MMM DD" format (i.e. "Dec 1
     return convert_to_year_month_day(" ".join(date.text.strip().replace("\n", "").split(" ")[-2:]))
 
 
-def run():
+def run(input_excel_file_name, output_excel_file_name):
 
     columns = {"title": "B", "date": "G", "price": "H", "shipping": "I"}
 
@@ -107,9 +107,7 @@ def run():
 
     f = open("output.txt", "w")
 
-    excel_file_name = "INVENTORY & SALES TRACKING.xlsx"
-
-    wb = openpyxl.load_workbook(excel_file_name)
+    wb = openpyxl.load_workbook(input_excel_file_name)
     ws = wb.active
 
     row_counter = 6  # arbitrary starting point of spreadsheet to make it look cleaner
@@ -163,7 +161,7 @@ def run():
 
     f.close()
 
-    wb.save(".xlsx")
+    wb.save(output_excel_file_name)
 
     if login:
         driver.quit()
