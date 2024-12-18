@@ -36,130 +36,134 @@ def gross_date_conversion(date):  # expects date in "MMM DD" format (i.e. "Dec 1
     # outputs in YYYY-MM-DD of the most recent date
     return convert_to_year_month_day(" ".join(date.text.strip().replace("\n", "").split(" ")[-2:]))
 
-columns = {"title": "B", "date": "G", "price": "H", "shipping": "I"}
 
-shipping_regex = r"buyer paid \$([0-9]+\.[0-9]{2})"
+def run():
 
-login = True
+    columns = {"title": "B", "date": "G", "price": "H", "shipping": "I"}
+
+    shipping_regex = r"buyer paid \$([0-9]+\.[0-9]{2})"
+
+    login = True
+
+    if login:
+
+        driver = webdriver.Chrome()
+
+        driver.get("https://signin.ebay.com")
+
+        print("Please log in manually.")
+        try:
+            # signed in
+            # gh-identity__greeting
+
+            # signed out
+            # gh-identity-signed-out-recognized
+            
+            errors = [NoSuchElementException]
+            # Wait up to 5 minutes for the CAPTCHA to be solved
+            wait = WebDriverWait(driver, 300, poll_frequency=0.2, ignored_exceptions=errors).until(EC.visibility_of_element_located((By.XPATH, "//span[contains(@class, 'gh-identity__greeting')]")))
+            
+            print("Element found:", wait.text)
+
+            print("CAPTCHA solved! Proceeding...")
+
+            driver.get(
+                "https://www.ebay.com/mys/sold/rf/sort=MOST_RECENTLY_SOLD&filter=ALL&limit=200&period=LAST_90_DAYS"
+            )
+
+            driver.implicitly_wait(10)  # seconds
+
+            sold_items = driver.page_source
+
+        except TimeoutException:
+            # print(e)
+            print("CAPTCHA and Login took too long or failed.")
+            driver.quit()
+            exit(0)
+
+    else:
+        input_file = open("example.html", "r")
+
+        html = input_file.read()
+
+        input_file.close()
+
+        sold_items = html
 
 
-if login:
+    soup = BeautifulSoup(sold_items, "lxml")
 
-    driver = webdriver.Chrome()
+    # sold-item--content div --> listing
 
-    driver.get("https://signin.ebay.com")
+    # "item-title" --> descriptions
+    # "item__sold-date" --> date sold
+    # "item__shipping-price" --> shipping price [+ Shipping (buyer paid $X)] or [+ Shipping]
+    # "item__price" --> sale price
+    # "item__buyer-name" --> buyer name
 
-    print("Please log in manually.")
-    try:
-        # signed in
-        # gh-identity__greeting
+    listings = soup.find_all("div", class_="sold-item--content")
 
-        # signed out
-        # gh-identity-signed-out-recognized
-        
-        errors = [NoSuchElementException]
-         # Wait up to 5 minutes for the CAPTCHA to be solved
-        wait = WebDriverWait(driver, 300, poll_frequency=0.2, ignored_exceptions=errors).until(EC.visibility_of_element_located((By.CLASS_NAME,"gh-identity__greeting")))
-        
-        print("Element found:", wait.text)
+    # cleaned_listings = []
 
-        print("CAPTCHA solved! Proceeding...")
+    f = open("output.txt", "w")
 
-        driver.get(
-            "https://www.ebay.com/mys/sold/rf/sort=MOST_RECENTLY_SOLD&filter=ALL&limit=200&period=LAST_90_DAYS"
-        )
+    excel_file_name = "INVENTORY & SALES TRACKING.xlsx"
 
-        driver.implicitly_wait(10)  # seconds
+    wb = openpyxl.load_workbook(excel_file_name)
+    ws = wb.active
 
-        sold_items = driver.page_source
+    row_counter = 6  # arbitrary starting point of spreadsheet to make it look cleaner
 
-    except TimeoutException:
-        # print(e)
-        print("CAPTCHA and Login took too long or failed.")
+    for listing in listings:
+        # print (listing)
+        try:
+            title = listing.find("h3", class_="item-title")
+            date = listing.find("div", class_="item__sold-date")
+            price = listing.find("span", class_="item__price")
+            shipping = listing.find("span", class_="item__shipping-price")
+            # buyer_name = listing.find("div", class_="item__buyer-name")
+
+            if shipping:
+                match = re.search(shipping_regex, shipping.text.strip())
+
+                if match:
+                    shipping = "$" + match.group(1)
+                else:
+                    shipping = "$0"
+
+            listing_dict = {
+                "title": " ".join(title.text.strip().split()) if title else "NO TITLE",
+                "date": gross_date_conversion(date) if date else "NO DATE",
+                "price": price.text.strip().replace("\n", "") if price else "NO PRICE",
+                "shipping": (
+                    shipping.strip().replace("\n", "") if shipping else "SHIPPING NOT FOUND"
+                ),
+                # "buyer_name": buyer_name.text.strip() if buyer_name else "NO BUYER"
+            }
+
+            ws[columns["title"] + str(row_counter)] = listing_dict["title"]
+
+            ws[columns["date"] + str(row_counter)] = listing_dict["date"]
+
+            ws[columns["price"] + str(row_counter)] = listing_dict["price"]
+            ws[columns["price"] + str(row_counter)].number_format = (
+                "$#,##0.00"  # set the format to USD
+            )
+
+            ws[columns["shipping"] + str(row_counter)] = listing_dict["shipping"]
+            ws[columns["shipping"] + str(row_counter)].number_format = (
+                "$#,##0.00"  # set the format to USD
+            )
+
+            row_counter += 1
+            f.write(str(listing_dict) + "\n\n")
+
+        except Exception as e:
+            print(f"Error parsing listing: {e}")
+
+    f.close()
+
+    wb.save(".xlsx")
+
+    if login:
         driver.quit()
-        exit(0)
-
-else:
-    input_file = open("example.html", "r")
-
-    html = input_file.read()
-
-    input_file.close()
-
-    sold_items = html
-
-
-soup = BeautifulSoup(sold_items, "lxml")
-
-# sold-item--content div --> listing
-
-# "item-title" --> descriptions
-# "item__sold-date" --> date sold
-# "item__shipping-price" --> shipping price [+ Shipping (buyer paid $X)] or [+ Shipping]
-# "item__price" --> sale price
-# "item__buyer-name" --> buyer name
-
-listings = soup.find_all("div", class_="sold-item--content")
-
-# cleaned_listings = []
-
-f = open("output.txt", "w")
-
-wb = openpyxl.load_workbook("INVENTORY & SALES TRACKING.xlsx")
-ws = wb.active
-
-row_counter = 6  # arbitrary starting point of spreadsheet to make it look cleaner
-
-for listing in listings:
-    # print (listing)
-    try:
-        title = listing.find("h3", class_="item-title")
-        date = listing.find("div", class_="item__sold-date")
-        price = listing.find("span", class_="item__price")
-        shipping = listing.find("span", class_="item__shipping-price")
-        # buyer_name = listing.find("div", class_="item__buyer-name")
-
-        if shipping:
-            match = re.search(shipping_regex, shipping.text.strip())
-
-            if match:
-                shipping = "$" + match.group(1)
-            else:
-                shipping = "$0"
-
-        listing_dict = {
-            "title": " ".join(title.text.strip().split()) if title else "NO TITLE",
-            "date": gross_date_conversion(date) if date else "NO DATE",
-            "price": price.text.strip().replace("\n", "") if price else "NO PRICE",
-            "shipping": (
-                shipping.strip().replace("\n", "") if shipping else "SHIPPING NOT FOUND"
-            ),
-            # "buyer_name": buyer_name.text.strip() if buyer_name else "NO BUYER"
-        }
-
-        ws[columns["title"] + str(row_counter)] = listing_dict["title"]
-
-        ws[columns["date"] + str(row_counter)] = listing_dict["date"]
-
-        ws[columns["price"] + str(row_counter)] = listing_dict["price"]
-        ws[columns["price"] + str(row_counter)].number_format = (
-            "$#,##0.00"  # set the format to USD
-        )
-
-        ws[columns["shipping"] + str(row_counter)] = listing_dict["shipping"]
-        ws[columns["shipping"] + str(row_counter)].number_format = (
-            "$#,##0.00"  # set the format to USD
-        )
-
-        row_counter += 1
-        f.write(str(listing_dict) + "\n\n")
-
-    except Exception as e:
-        print(f"Error parsing listing: {e}")
-
-f.close()
-
-wb.save(".xlsx")
-
-if login:
-    driver.quit()
