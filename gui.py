@@ -33,6 +33,9 @@ class ScraperApp(QMainWindow):
         self.setFixedWidth(500)
         self.setFixedHeight(500)
         
+        self.output_file_path = None
+        self.input_file_path = None
+        
         form_layout = QFormLayout()
         
         self.username_edit = QLineEdit()
@@ -51,20 +54,24 @@ class ScraperApp(QMainWindow):
         form_layout.addRow(QLabel("Include Data from Existing File?"), self.include_existing_data)
         
         self.input_file_field = QLineEdit("[Input File Name]")
+        self.input_file_field.setFixedWidth(250)
         form_layout.addRow(QLabel("Input File Name"), self.input_file_field)
         
         form_layout.addWidget(self.file_selector_button)
         
         self.output_file_field = QLineEdit("[Output File Name]")
+        self.output_file_field.setFixedWidth(250)
         form_layout.addRow(QLabel("Output File Name"), self.output_file_field)
+        self.output_file_field.textChanged.connect(self.change_status_message_on_output_name_update)
         
         self.run_button = QPushButton("Run Program")
         
         self.status_label = QLabel("")
-               
         
-        form_layout.addWidget(self.status_label)
-        form_layout.addWidget(self.run_button)
+        form_layout.addRow(self.status_label)
+        form_layout.addRow(self.run_button)
+        
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignCenter)
         
         
         # set output file name to mirror input file name
@@ -87,7 +94,8 @@ class ScraperApp(QMainWindow):
         if file_name:
             print(f"Selected file: {file_name}")
             self.input_file_field.setText(file_name)
-            self.output_file_field.setText(file_name)
+            self.update_output_file_name(file_name)
+            
     
     def toggle_output_file_editable(self):
         """Enable or disable the output file field and browse button based on the checkbox state."""
@@ -97,17 +105,33 @@ class ScraperApp(QMainWindow):
         else:
             self.input_file_field.setEnabled(False)
             self.file_selector_button.setEnabled(True)
+            
+    def change_status_message_on_output_name_update(self, output_file_name):
+        if output_file_name and self.input_file_field.text and output_file_name == self.input_file_field.text:
+            self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name to avoid accidental deletion of data.")
+        elif output_file_name and self.input_file_field.text and output_file_name != self.input_file_field.text:
+            self.status_label.setText("")
               
     def update_output_file_name(self, input_file_name):
         """Automatically update the output file name field to mirror the input file name."""
         if input_file_name:
             base_name = os.path.splitext(os.path.basename(input_file_name))[0]
             self.output_file_field.setText(base_name)
+            
+            self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name\n to avoid accidental deletion of data.")
+    
+    def prep_run_scraper(self):
+        input_file_name = self.input_file_field
+        output_file_name = self.output_file_field
+        
+        if self.include_existing_data.isChecked() and not (input_file_name):
+            print("invalid configuration: make sure to include an input file if you want to add the scraped data to an existing file")
+        # elif self.
+            
         
 def main():
     
     app = QApplication(sys.argv)
-    # ex = EditableTextField()
     window = ScraperApp()
     window.show()
     app.exec()
