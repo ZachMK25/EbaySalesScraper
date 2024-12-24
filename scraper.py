@@ -66,6 +66,13 @@ def run(input_excel_file_name, output_excel_file_name):
             print("Element found:", wait.text)
 
             print("CAPTCHA solved! Proceeding...")
+            
+            
+            #UNTESTED!!!!!!
+            # minimize window to run in background
+            driver.minimize_window()
+            
+            
 
             driver.get(
                 "https://www.ebay.com/mys/sold/rf/sort=MOST_RECENTLY_SOLD&filter=ALL&limit=200&period=LAST_90_DAYS"
