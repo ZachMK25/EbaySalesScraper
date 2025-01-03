@@ -9,6 +9,10 @@ import re
 import openpyxl
 from datetime import datetime
 
+import time
+
+from PySide6.QtWidgets import QProgressBar, QLabel
+
 def convert_to_year_month_day(month_day: str) -> str:
 
     current_date = datetime.now()
@@ -37,7 +41,9 @@ def gross_date_conversion(date):  # expects date in "MMM DD" format (i.e. "Dec 1
     return convert_to_year_month_day(" ".join(date.text.strip().replace("\n", "").split(" ")[-2:]))
 
 
-def run(input_excel_file_name, output_excel_file_name):
+def run(input_excel_file_name:str, output_excel_file_name:str, columns: dict, progress_bar: QProgressBar, progress_bar_label: QLabel):
+
+    start_time = time.time()
 
     columns = {"title": "B", "date": "G", "price": "H", "shipping": "I"}
 
@@ -61,19 +67,21 @@ def run(input_excel_file_name, output_excel_file_name):
             
             errors = [NoSuchElementException]
             # Wait up to 5 minutes for the CAPTCHA to be solved
-            wait = WebDriverWait(driver, 300, poll_frequency=0.2, ignored_exceptions=errors).until(EC.visibility_of_element_located((By.XPATH, "//span[contains(@class, 'gh-identity__greeting')]")))
+            wait = WebDriverWait(driver, 300, poll_frequency=1, ignored_exceptions=errors).until(EC.visibility_of_element_located((By.XPATH, "//span[contains(@class, 'gh-identity__greeting')]")))
             
             print("Element found:", wait.text)
 
             print("CAPTCHA solved! Proceeding...")
             
+            print("--- %s seconds ---" % (time.time() - start_time))
+            
+            progress_bar.setValue(50)
+            progress_bar
             
             #UNTESTED!!!!!!
             # minimize window to run in background
             driver.minimize_window()
             
-            
-
             driver.get(
                 "https://www.ebay.com/mys/sold/rf/sort=MOST_RECENTLY_SOLD&filter=ALL&limit=200&period=LAST_90_DAYS"
             )
@@ -85,8 +93,10 @@ def run(input_excel_file_name, output_excel_file_name):
         except TimeoutException:
             # print(e)
             print("CAPTCHA and Login took too long or failed.")
+            
             driver.quit()
-            exit(0)
+            return "CAPTCHA and Login took too long or failed."
+            # exit(0)
 
     else:
         input_file = open("example.html", "r")
@@ -109,7 +119,9 @@ def run(input_excel_file_name, output_excel_file_name):
     # "item__buyer-name" --> buyer name
 
     listings = soup.find_all("div", class_="sold-item--content")
-
+    
+    progress_bar.setValue(80)
+    
     # cleaned_listings = []
 
     f = open("output.txt", "w")
@@ -119,6 +131,8 @@ def run(input_excel_file_name, output_excel_file_name):
 
     row_counter = 6  # arbitrary starting point of spreadsheet to make it look cleaner
 
+    increment_progress_threshold = len(listings) / 2 + row_counter
+    
     for listing in listings:
         # print (listing)
         try:
@@ -161,6 +175,11 @@ def run(input_excel_file_name, output_excel_file_name):
             )
 
             row_counter += 1
+            
+            if row_counter == increment_progress_threshold:
+                progress_bar.setValue(90)
+                
+            
             f.write(str(listing_dict) + "\n\n")
 
         except Exception as e:
@@ -172,3 +191,4 @@ def run(input_excel_file_name, output_excel_file_name):
 
     if login:
         driver.quit()
+        

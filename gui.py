@@ -1,31 +1,12 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QFormLayout, QWidget, QPushButton, QInputDialog, QLineEdit, QVBoxLayout, QLabel, QFileDialog, QCheckBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QFormLayout, QWidget, QPushButton, QInputDialog, QLineEdit, QVBoxLayout, QLabel, QFileDialog, QCheckBox, QProgressBar
 from PySide6.QtCore import Qt
 
+from datetime import datetime
 import sys
 import os
 
-# class EditableTextField(QWidget):
-#     def __init__(self):
-#         super().__init__()
-#         self.setWindowTitle("Ebay Scraping Tool")  
-
-#         self.btn = QPushButton('Dialog', self)
-#         self.btn.move(20, 20)
-#         self.btn.clicked.connect(self.showDialog)
+from scraper import run
         
-#         self.le = QLineEdit(self)
-#         self.le.move(130, 22)
-        
-#         self.setGeometry(300, 300, 290, 150)
-#         self.show()
-        
-#     def showDialog(self):
-#         text, ok = QInputDialog.getText(self, 'Input', 
-#             'Enter data here:')
-        
-#         if ok:
-#             self.le.setText(str(text))
-            
 class ScraperApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -34,18 +15,21 @@ class ScraperApp(QMainWindow):
         self.setFixedHeight(500)
         
         self.output_file_path = None
-        self.input_file_path = None
+        self.input_file_path = os.getcwd()
         
+                
         form_layout = QFormLayout()
         
-        self.username_edit = QLineEdit()
-        self.password_edit = QLineEdit()
-        self.username_edit.setFixedWidth(120)
-        self.password_edit.setFixedWidth(120)
-        form_layout.addRow(QLabel(
-            "Ebay Username"), self.username_edit)
-        form_layout.addRow(QLabel(
-            "Ebay Password"), self.password_edit)
+        # self.username_edit = QLineEdit()
+        # self.password_edit = QLineEdit()
+        # self.username_edit.setFixedWidth(120)
+        # self.password_edit.setFixedWidth(120)
+        # form_layout.addRow(QLabel(
+        #     "Ebay Username"), self.username_edit)
+        # form_layout.addRow(QLabel(
+        #     "Ebay Password"), self.password_edit)
+        
+        self.instruction_label = QLabel("To run the webscraper, enter the ")
 
         self.file_selector_button = QPushButton("Select Existing Excel File")
         self.file_selector_button.clicked.connect(self.open_file_dialog)
@@ -59,12 +43,13 @@ class ScraperApp(QMainWindow):
         
         form_layout.addWidget(self.file_selector_button)
         
-        self.output_file_field = QLineEdit("[Output File Name]")
-        self.output_file_field.setFixedWidth(250)
-        form_layout.addRow(QLabel("Output File Name"), self.output_file_field)
-        self.output_file_field.textChanged.connect(self.change_status_message_on_output_name_update)
+        # self.output_file_field = QLineEdit("[Output File Name]")
+        # self.output_file_field.setFixedWidth(250)
+        # form_layout.addRow(QLabel("Output File Name"), self.output_file_field)
+        # self.output_file_field.textChanged.connect(self.change_status_message_on_output_name_update)
         
         self.run_button = QPushButton("Run Program")
+        self.run_button.clicked.connect(self.prep_run_scraper)
         
         self.status_label = QLabel("")
         
@@ -73,9 +58,16 @@ class ScraperApp(QMainWindow):
         
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignCenter)
         
+        self.progress_bar = QProgressBar()
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setGeometry(30, 40, 200, 25)
+        
+        
+        form_layout.addRow(self.progress_bar)
         
         # set output file name to mirror input file name
-        self.input_file_field.textChanged.connect(self.update_output_file_name)
+        # self.input_file_field.textChanged.connect(self.update_output_file_name)
         
         # self.layout.setFormAlignment(Qt.AlignCenter)
 
@@ -93,8 +85,10 @@ class ScraperApp(QMainWindow):
         )
         if file_name:
             print(f"Selected file: {file_name}")
-            self.input_file_field.setText(file_name)
-            self.update_output_file_name(file_name)
+            _, base_name = os.path.split(file_name)
+            self.input_file_path = file_name
+            self.input_file_field.setText(base_name)
+            # self.update_output_file_name(base_name)
             
     
     def toggle_output_file_editable(self):
@@ -106,28 +100,37 @@ class ScraperApp(QMainWindow):
             self.input_file_field.setEnabled(False)
             self.file_selector_button.setEnabled(True)
             
-    def change_status_message_on_output_name_update(self, output_file_name):
-        if output_file_name and self.input_file_field.text and output_file_name == self.input_file_field.text:
-            self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name to avoid accidental deletion of data.")
-        elif output_file_name and self.input_file_field.text and output_file_name != self.input_file_field.text:
-            self.status_label.setText("")
+    # def change_status_message_on_output_name_update(self, output_file_name):
+    #     if output_file_name and self.input_file_field.text and output_file_name == self.input_file_field.text:
+    #         self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name to avoid accidental deletion of data.")
+    #     elif output_file_name and self.input_file_field.text and output_file_name != self.input_file_field.text:
+    #         self.status_label.setText("")
               
-    def update_output_file_name(self, input_file_name):
-        """Automatically update the output file name field to mirror the input file name."""
-        if input_file_name:
-            base_name = os.path.splitext(os.path.basename(input_file_name))[0]
-            self.output_file_field.setText(base_name)
+    # def update_output_file_name(self, input_file_name):
+    #     """Automatically update the output file name field to mirror the input file name."""
+    #     if input_file_name:
+    #         base_name = input_file_name
+    #         self.output_file_field.setText(base_name)
+    #         self.output_file_path=self.input_file_path
             
-            self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name\n to avoid accidental deletion of data.")
+    #         self.status_label.setText("Warning: Output file will overwrite existing input file.\nMight be safer to give the file a different name\n to avoid accidental deletion of data.")
     
     def prep_run_scraper(self):
-        input_file_name = self.input_file_field
-        output_file_name = self.output_file_field
         
-        if self.include_existing_data.isChecked() and not (input_file_name):
-            print("invalid configuration: make sure to include an input file if you want to add the scraped data to an existing file")
-        # elif self.
-            
+        self.progress_bar.reset()
+        
+        print(self.input_file_path)
+        # print(self.output_file_path)
+        
+        output_file_name = str(datetime.now()) + ".xlsx"
+        
+        self.output_file_path = os.path.join(self.input_file_path, output_file_name)
+        
+        print(self.output_file_path)
+        
+        run(self.input_file_path, self.output_file_path, {}, self.progress_bar)
+                
+        
         
 def main():
     
